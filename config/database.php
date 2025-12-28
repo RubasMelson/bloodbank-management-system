@@ -1,9 +1,15 @@
 <?php
 // Config: Database Connection
-$host = $_ENV['DB_HOST'];
-$username = $_ENV['DB_USER'];
-$password = $_ENV['DB_PASS'];
-$db_name = $_ENV['DB_NAME'];
+$host = getenv("DB_HOST");
+$user = getenv("DB_USER");
+$pass = getenv("DB_PASS");
+$db   = getenv("DB_NAME");
+
+$conn = mysqli_connect($host, $user, $pass, $db);
+
+if (!$conn) {
+    die("Database connection failed");
+}
 
 try {
     $dsn = "mysql:host=$host;dbname=$db_name;charset=utf8mb4";
