@@ -1,16 +1,17 @@
-FROM php:8.2-cli
+FROM php:8.2-apache
 
-# Install mysqli extension
-RUN docker-php-ext-install mysqli
+# Enable Apache rewrite
+RUN a2enmod rewrite
 
-# Set working directory
-WORKDIR /app
+# Install mysqli + pdo_mysql
+RUN docker-php-ext-install mysqli pdo pdo_mysql
 
 # Copy project files
-COPY . .
+COPY . /var/www/html/
 
-# Expose port Render expects
+# Set permissions
+RUN chown -R www-data:www-data /var/www/html
+
 EXPOSE 8080
 
-# Start PHP built-in server
-CMD ["php", "-S", "0.0.0.0:8080", "-t", "."]
+CMD ["apache2-foreground"]
