@@ -1,9 +1,9 @@
 <?php
 // Config: Database Connection
-$host = 'localhost';
-$db_name = 'bloodbank';
-$username = 'root';
-$password = ''; // Default XAMPP password
+$host = $_ENV['DB_HOST'];
+$username = $_ENV['DB_USER'];
+$password = $_ENV['DB_PASS'];
+$db_name = $_ENV['DB_NAME'];
 
 try {
     $dsn = "mysql:host=$host;dbname=$db_name;charset=utf8mb4";
