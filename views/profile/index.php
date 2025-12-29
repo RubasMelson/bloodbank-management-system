@@ -16,7 +16,7 @@ require_once __DIR__ . '/../layout/header.php';
     <?php endif; ?>
 
     <div class="glass-panel" style="max-width:450px;">
-        <form action="bloodbank/profile/update" method="POST">
+        <form action="/bloodbank/profile/update" method="POST">
             <div class="form-group">
                 <label class="form-label">Full Name</label>
                 <input type="text" name="fullname" class="form-control"

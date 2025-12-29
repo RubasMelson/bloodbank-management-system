@@ -1,11 +1,11 @@
 <?php
-require_once __DIR__ . '/../config/database.php';
+// Database connection passed locally
 
 class InventoryController {
-    private $pdo;
+    private $conn;
 
-    public function __construct($pdo) {
-        $this->pdo = $pdo;
+    public function __construct($conn) {
+        $this->conn = $conn;
 
         // ✅ Ensure session exists
         if (session_status() === PHP_SESSION_NONE) {
@@ -22,9 +22,9 @@ class InventoryController {
         }
 
         try {
-            $stmt = $this->pdo->query("SELECT * FROM blood_inventory ORDER BY blood_group");
-            $inventory = $stmt->fetchAll();
-        } catch (PDOException $e) {
+            $result = $this->conn->query("SELECT * FROM blood_inventory ORDER BY blood_group");
+            $inventory = $result->fetch_all(MYSQLI_ASSOC);
+        } catch (Exception $e) {
             // Table might not exist, try to create it
             $this->initInventoryTable();
             $inventory = [];
@@ -60,36 +60,43 @@ class InventoryController {
             }
 
             try {
-                $this->pdo->beginTransaction();
+                $this->conn->begin_transaction();
 
                 // Ensure row exists
-                $check = $this->pdo->prepare(
+                $check = $this->conn->prepare(
                     "SELECT units FROM blood_inventory WHERE blood_group = ?"
                 );
-                $check->execute([$blood_group]);
-                $current = $check->fetchColumn();
+                $check->bind_param("s", $blood_group);
+                $check->execute();
+                $result = $check->get_result();
+                $row = $result->fetch_row();
+                $current = $row ? $row[0] : false;
 
                 if ($current === false) {
-                    $this->pdo->prepare(
+                    $stmt = $this->conn->prepare(
                         "INSERT INTO blood_inventory (blood_group, units) VALUES (?, 0)"
-                    )->execute([$blood_group]);
+                    );
+                    $stmt->bind_param("s", $blood_group);
+                    $stmt->execute();
                     $current = 0;
                 }
 
                 if ($operation === 'add') {
-                    $stmt = $this->pdo->prepare(
+                    $stmt = $this->conn->prepare(
                         "UPDATE blood_inventory SET units = units + ? WHERE blood_group = ?"
                     );
-                    $stmt->execute([$units, $blood_group]);
+                    $stmt->bind_param("is", $units, $blood_group);
+                    $stmt->execute();
                     $_SESSION['success'] = "$units units added to $blood_group";
 
                 } elseif ($operation === 'remove') {
 
                     if ($current >= $units) {
-                        $stmt = $this->pdo->prepare(
+                        $stmt = $this->conn->prepare(
                             "UPDATE blood_inventory SET units = units - ? WHERE blood_group = ?"
                         );
-                        $stmt->execute([$units, $blood_group]);
+                        $stmt->bind_param("is", $units, $blood_group);
+                        $stmt->execute();
                         $_SESSION['success'] = "$units units removed from $blood_group";
                     } else {
                         $_SESSION['error'] = "Insufficient stock for $blood_group";
@@ -99,10 +106,10 @@ class InventoryController {
                     $_SESSION['error'] = 'Invalid operation';
                 }
 
-                $this->pdo->commit();
+                $this->conn->commit();
 
             } catch (Exception $e) {
-                $this->pdo->rollBack();
+                $this->conn->rollback();
                 $_SESSION['error'] = 'Error updating inventory';
             }
 
@@ -112,7 +119,7 @@ class InventoryController {
     }
     private function initInventoryTable() {
         try {
-            $this->pdo->exec("
+            $this->conn->query("
                 CREATE TABLE IF NOT EXISTS blood_inventory (
                   id INT AUTO_INCREMENT PRIMARY KEY,
                   blood_group ENUM('A+','A-','B+','B-','AB+','AB-','O+','O-') UNIQUE NOT NULL,
@@ -122,9 +129,10 @@ class InventoryController {
             ");
             
             $groups = ['A+','A-','B+','B-','AB+','AB-','O+','O-'];
-            $stmt = $this->pdo->prepare("INSERT IGNORE INTO blood_inventory (blood_group, units) VALUES (?, 0)");
+            $stmt = $this->conn->prepare("INSERT IGNORE INTO blood_inventory (blood_group, units) VALUES (?, 0)");
             foreach ($groups as $g) {
-                $stmt->execute([$g]);
+                $stmt->bind_param("s", $g);
+                $stmt->execute();
             }
         } catch (Exception $e) {
             // Siltent fail or log

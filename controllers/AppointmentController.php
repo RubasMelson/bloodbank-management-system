@@ -1,12 +1,12 @@
 <?php
-require_once __DIR__ . '/../config/database.php';
+// Database connection passed locally
 
 class AppointmentController {
 
-    private $pdo;
+    private $conn;
 
-    public function __construct($pdo) {
-        $this->pdo = $pdo;
+    public function __construct($conn) {
+        $this->conn = $conn;
 
         if (session_status() === PHP_SESSION_NONE) {
             session_start();
@@ -34,7 +34,7 @@ class AppointmentController {
         // -------------------------
         // ADMIN / STAFF VIEW
         // -------------------------
-        $stmt = $this->pdo->query("
+        $result = $this->conn->query("
             SELECT 
                 a.id,
                 a.appointment_date,
@@ -46,7 +46,7 @@ class AppointmentController {
             ORDER BY a.appointment_date DESC
         ");
 
-        $appointments = $stmt->fetchAll(PDO::FETCH_ASSOC);
+        $appointments = $result->fetch_all(MYSQLI_ASSOC);
 
         require __DIR__ . '/../views/appointments/index.php';
     }
@@ -74,25 +74,25 @@ class AppointmentController {
             }
 
             // ❗ Prevent duplicate active appointment
-            $check = $this->pdo->prepare("
+            $check = $this->conn->prepare("
                 SELECT id FROM appointments
                 WHERE user_id = ? AND status = 'scheduled'
             ");
-            $check->execute([$_SESSION['user_id']]);
+            $check->bind_param("i", $_SESSION['user_id']);
+            $check->execute();
+            $check->store_result();
 
-            if ($check->fetch()) {
+            if ($check->num_rows > 0) {
                 throw new Exception('You already have a scheduled appointment');
             }
 
-            $stmt = $this->pdo->prepare(
+            $stmt = $this->conn->prepare(
                 "INSERT INTO appointments (user_id, appointment_date)
                  VALUES (?, ?)"
             );
 
-            $stmt->execute([
-                $_SESSION['user_id'],
-                $date
-            ]);
+            $stmt->bind_param("is", $_SESSION['user_id'], $date);
+            $stmt->execute();
 
             $_SESSION['success'] = 'Appointment scheduled successfully';
 
@@ -126,10 +126,11 @@ class AppointmentController {
             exit;
         }
 
-        $stmt = $this->pdo->prepare(
+        $stmt = $this->conn->prepare(
             "UPDATE appointments SET status = ? WHERE id = ?"
         );
-        $stmt->execute([$status, $id]);
+        $stmt->bind_param("si", $status, $id);
+        $stmt->execute();
 
         $_SESSION['success'] = 'Appointment updated successfully';
         header('Location: /bloodbank/appointments');

@@ -1,12 +1,12 @@
 <?php
 
-require_once __DIR__ . '/../config/database.php';
+// Database connection is passed via constructor
 
 class AuthController {
-    private $pdo;
+    private $conn;
 
-    public function __construct($pdo) {
-        $this->pdo = $pdo;
+    public function __construct($conn) {
+        $this->conn = $conn;
 
         // ✅ Ensure session is started
         if (session_status() === PHP_SESSION_NONE) {
@@ -20,9 +20,11 @@ class AuthController {
             $email = filter_input(INPUT_POST, 'email', FILTER_SANITIZE_EMAIL);
             $password = $_POST['password'] ?? '';
 
-            $stmt = $this->pdo->prepare("SELECT * FROM users WHERE email = ?");
-            $stmt->execute([$email]);
-            $user = $stmt->fetch();
+            $stmt = $this->conn->prepare("SELECT * FROM users WHERE email = ?");
+            $stmt->bind_param("s", $email);
+            $stmt->execute();
+            $result = $stmt->get_result();
+            $user = $result->fetch_assoc();
 
             if ($user && password_verify($password, $user['password'])) {
 
@@ -49,9 +51,11 @@ class AuthController {
             $role     = trim($_POST['role'] ?? 'donor');
 
             // Check if email exists
-            $stmt = $this->pdo->prepare("SELECT id FROM users WHERE email = ?");
-            $stmt->execute([$email]);
-            if ($stmt->fetch()) {
+            $stmt = $this->conn->prepare("SELECT id FROM users WHERE email = ?");
+            $stmt->bind_param("s", $email);
+            $stmt->execute();
+            $stmt->store_result();
+            if ($stmt->num_rows > 0) {
                 $_SESSION['error'] = 'Email already registered';
                 header('Location: /bloodbank/register');
                 exit;
@@ -64,16 +68,17 @@ class AuthController {
 
             $hashed_password = password_hash($password, PASSWORD_DEFAULT);
 
-            try {
-                $stmt = $this->pdo->prepare(
-                    "INSERT INTO users (fullname, email, password, role) VALUES (?, ?, ?, ?)"
-                );
-                $stmt->execute([$fullname, $email, $hashed_password, $role]);
-
+            // Insert new user
+            $stmt = $this->conn->prepare(
+                "INSERT INTO users (fullname, email, password, role) VALUES (?, ?, ?, ?)"
+            );
+            $stmt->bind_param("ssss", $fullname, $email, $hashed_password, $role);
+            
+            if ($stmt->execute()) {
                 $_SESSION['success'] = 'Registration successful! Please login.';
                 header('Location: /bloodbank/login');
                 exit;
-            } catch (PDOException $e) {
+            } else {
                 $_SESSION['error'] = 'Registration failed.';
                 header('Location: /bloodbank/register');
                 exit;

@@ -1,12 +1,12 @@
 <?php
-require_once __DIR__ . '/../config/database.php';
+// Database connection passed locally
 
 class DonorController {
 
-    private $pdo;
+    private $conn;
 
-    public function __construct($pdo) {
-        $this->pdo = $pdo;
+    public function __construct($conn) {
+        $this->conn = $conn;
         if (session_status() === PHP_SESSION_NONE) {
             session_start();
         }
@@ -23,7 +23,7 @@ class DonorController {
         }
 
         try {
-            $stmt = $this->pdo->query("
+            $result = $this->conn->query("
                 SELECT 
                     d.id,
                     d.fullname,
@@ -40,15 +40,16 @@ class DonorController {
                 ORDER BY d.created_at DESC
             ");
 
-            $donors = $stmt->fetchAll(PDO::FETCH_ASSOC);
+            $donors = $result->fetch_all(MYSQLI_ASSOC);
 
             // Pending count (FOR SIDEBAR BADGE)
-            $stmt2 = $this->pdo->query(
+            $result2 = $this->conn->query(
                 "SELECT COUNT(*) FROM donors WHERE status = 'pending'"
             );
-            $pendingDonorsCount = (int)$stmt2->fetchColumn();
+            $row = $result2->fetch_row();
+            $pendingDonorsCount = (int)$row[0];
 
-        } catch (PDOException $e) {
+        } catch (Exception $e) {
             $donors = [];
             $pendingDonorsCount = 0;
             $_SESSION['error'] = 'Failed to load donors';
@@ -100,22 +101,24 @@ class DonorController {
             }
 
             // Prevent duplicate donor
-            $check = $this->pdo->prepare(
+            $check = $this->conn->prepare(
                 "SELECT id FROM donors WHERE user_id = ?"
             );
-            $check->execute([$user_id]);
+            $check->bind_param("i", $user_id);
+            $check->execute();
+            $check->store_result();
 
-            if ($check->fetch()) {
+            if ($check->num_rows > 0) {
                 throw new Exception('You already applied as a donor');
             }
 
-            $stmt = $this->pdo->prepare("
+            $stmt = $this->conn->prepare("
                 INSERT INTO donors
                 (user_id, fullname, email, phone, blood_group, city, last_donation, status)
                 VALUES (?, ?, ?, ?, ?, ?, ?, 'pending')
             ");
 
-            $stmt->execute([
+            $stmt->bind_param("issssss", 
                 $user_id,
                 $fullname,
                 $email,
@@ -123,7 +126,9 @@ class DonorController {
                 $blood_group,
                 $city,
                 $last_donation
-            ]);
+            );
+
+            $stmt->execute();
 
             $_SESSION['success'] =
                 'Donor application submitted. Waiting for admin approval.';
@@ -157,14 +162,15 @@ class DonorController {
         }
 
         try {
-            $stmt = $this->pdo->prepare(
+            $stmt = $this->conn->prepare(
                 "UPDATE donors SET status = ? WHERE id = ?"
             );
-            $stmt->execute([$status, $id]);
+            $stmt->bind_param("si", $status, $id);
+            $stmt->execute();
 
             $_SESSION['success'] = 'Donor status updated successfully';
 
-        } catch (PDOException $e) {
+        } catch (Exception $e) {
             $_SESSION['error'] = 'Failed to update donor';
         }
 
@@ -183,14 +189,15 @@ class DonorController {
         }
 
         try {
-            $stmt = $this->pdo->prepare(
+            $stmt = $this->conn->prepare(
                 "DELETE FROM donors WHERE id = ?"
             );
-            $stmt->execute([$id]);
+            $stmt->bind_param("i", $id);
+            $stmt->execute();
 
             $_SESSION['success'] = 'Donor deleted successfully';
 
-        } catch (PDOException $e) {
+        } catch (Exception $e) {
             $_SESSION['error'] = 'Failed to delete donor';
         }
 

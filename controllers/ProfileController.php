@@ -1,10 +1,10 @@
 <?php
 
 class ProfileController {
-    private $pdo;
+    private $conn;
 
-    public function __construct($pdo) {
-        $this->pdo = $pdo;
+    public function __construct($conn) {
+        $this->conn = $conn;
 
         if (session_status() === PHP_SESSION_NONE) {
             session_start();
@@ -33,22 +33,24 @@ class ProfileController {
             if ($password !== '') {
                 $hashed = password_hash($password, PASSWORD_DEFAULT);
 
-                $stmt = $this->pdo->prepare(
+                $stmt = $this->conn->prepare(
                     "UPDATE users SET fullname = ?, password = ? WHERE id = ?"
                 );
-                $stmt->execute([$fullname, $hashed, $userId]);
+                $stmt->bind_param("ssi", $fullname, $hashed, $userId);
+                $stmt->execute();
 
             } else {
-                $stmt = $this->pdo->prepare(
+                $stmt = $this->conn->prepare(
                     "UPDATE users SET fullname = ? WHERE id = ?"
                 );
-                $stmt->execute([$fullname, $userId]);
+                $stmt->bind_param("si", $fullname, $userId);
+                $stmt->execute();
             }
 
             $_SESSION['user_name'] = $fullname;
             $_SESSION['success'] = 'Profile updated successfully';
 
-        } catch (PDOException $e) {
+        } catch (Exception $e) {
             $_SESSION['error'] = 'Update failed: ' . $e->getMessage();
         }
 

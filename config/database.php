@@ -1,16 +1,13 @@
 <?php
-$host = getenv("DB_HOST");
-$user = getenv("DB_USER");
-$pass = getenv("DB_PASS");
-$db   = getenv("DB_NAME");
+$host = "localhost";
+$user = "root";
+$pass = "";
+$db   = "bloodbank";
 
-if (!$host || !$user || !$db) {
-    die("Database environment variables not set");
-}
+mysqli_report(MYSQLI_REPORT_ERROR | MYSQLI_REPORT_STRICT);
 
 $conn = mysqli_connect($host, $user, $pass, $db);
 
 if (!$conn) {
     die("Database connection failed: " . mysqli_connect_error());
 }
-?>

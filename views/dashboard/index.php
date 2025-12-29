@@ -8,7 +8,7 @@ if (session_status() === PHP_SESSION_NONE) {
 $pageTitle = 'Dashboard - Blood Bank';
 
 // Database
-require_once __DIR__ . '/../../config/database.php';
+// Database provided by index.php
 
 // Header (HTML + CSS)
 require_once __DIR__ . '/../layout/header.php';
@@ -23,32 +23,33 @@ $userRole = $_SESSION['user_role'] ?? 'donor';
 if ($userRole !== 'donor') {
 
     // Total Approved Donors
-    $totalDonors = $pdo->query(
-        "SELECT COUNT(*) FROM donors WHERE status = 'approved'"
-    )->fetchColumn();
+    $result = mysqli_query($conn, "SELECT COUNT(*) FROM donors WHERE status = 'approved'");
+    $row = mysqli_fetch_row($result);
+    $totalDonors = $row[0];
 
     // Total Blood Units
-    $totalUnits = $pdo->query(
-        "SELECT COALESCE(SUM(units),0) FROM blood_inventory"
-    )->fetchColumn();
+    $result = mysqli_query($conn, "SELECT COALESCE(SUM(units),0) FROM blood_inventory");
+    $row = mysqli_fetch_row($result);
+    $totalUnits = $row[0];
 
     // Pending Requests
-    $pendingRequests = $pdo->query(
-        "SELECT COUNT(*) FROM requests WHERE status = 'pending'"
-    )->fetchColumn();
+    $result = mysqli_query($conn, "SELECT COUNT(*) FROM requests WHERE status = 'pending'");
+    $row = mysqli_fetch_row($result);
+    $pendingRequests = $row[0];
 
     // Pending Donors
-    $pendingDonorsCount = $pdo->query(
-        "SELECT COUNT(*) FROM donors WHERE status = 'pending'"
-    )->fetchColumn();
+    $result = mysqli_query($conn, "SELECT COUNT(*) FROM donors WHERE status = 'pending'");
+    $row = mysqli_fetch_row($result);
+    $pendingDonorsCount = $row[0];
 
     // Recent Requests
-    $recentRequests = $pdo->query(
+    $result = mysqli_query($conn, 
         "SELECT patient_name, blood_group, units, hospital_name, status
          FROM requests
          ORDER BY request_date DESC
          LIMIT 5"
-    )->fetchAll(PDO::FETCH_ASSOC);
+    );
+    $recentRequests = mysqli_fetch_all($result, MYSQLI_ASSOC);
 }
 ?>
 

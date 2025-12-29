@@ -2,11 +2,11 @@
 
 class RequestController
 {
-    private PDO $pdo;
+    private $conn;
 
-    public function __construct(PDO $pdo)
+    public function __construct($conn)
     {
-        $this->pdo = $pdo;
+        $this->conn = $conn;
 
         // Ensure session
         if (session_status() === PHP_SESSION_NONE) {
@@ -27,18 +27,19 @@ class RequestController
 
         try {
             // All requests
-            $stmt = $this->pdo->query(
+            $result = $this->conn->query(
                 "SELECT * FROM requests ORDER BY request_date DESC"
             );
-            $requests = $stmt->fetchAll(PDO::FETCH_ASSOC);
+            $requests = $result->fetch_all(MYSQLI_ASSOC);
 
             // ✅ Pending count (FOR SIDEBAR BADGE)
-            $stmt2 = $this->pdo->query(
+            $result2 = $this->conn->query(
                 "SELECT COUNT(*) FROM requests WHERE status = 'pending'"
             );
-            $pendingCount = (int)$stmt2->fetchColumn();
+            $row = $result2->fetch_row();
+            $pendingCount = (int)$row[0];
 
-        } catch (PDOException $e) {
+        } catch (Exception $e) {
             $requests = [];
             $pendingCount = 0;
             $_SESSION['error'] = 'Failed to load requests';
@@ -86,19 +87,21 @@ class RequestController
                 throw new Exception('All fields are required');
             }
 
-            $stmt = $this->pdo->prepare(
+            $stmt = $this->conn->prepare(
                 "INSERT INTO requests
                  (patient_name, hospital_name, blood_group, units, contact_phone, status)
                  VALUES (?, ?, ?, ?, ?, 'pending')"
             );
 
-            $stmt->execute([
+            $stmt->bind_param("sssis", 
                 $patient_name,
                 $hospital_name,
                 $blood_group,
                 $units,
                 $contact_phone
-            ]);
+            );
+
+            $stmt->execute();
 
             $_SESSION['success'] = 'Blood request submitted successfully!';
             header('Location: /bloodbank/dashboard');
@@ -136,14 +139,16 @@ class RequestController
         }
 
         try {
-            $this->pdo->beginTransaction();
+            $this->conn->begin_transaction();
 
             // Fetch request
-            $stmt = $this->pdo->prepare(
+            $stmt = $this->conn->prepare(
                 "SELECT blood_group, units FROM requests WHERE id = ?"
             );
-            $stmt->execute([$id]);
-            $request = $stmt->fetch(PDO::FETCH_ASSOC);
+            $stmt->bind_param("i", $id);
+            $stmt->execute();
+            $result = $stmt->get_result();
+            $request = $result->fetch_assoc();
 
             if (!$request) {
                 throw new Exception('Request not found');
@@ -152,39 +157,41 @@ class RequestController
             // Deduct inventory ONLY when COMPLETED
             if ($status === 'completed') {
 
-                $stmt = $this->pdo->prepare(
+                $stmt = $this->conn->prepare(
                     "SELECT units FROM blood_inventory WHERE blood_group = ?"
                 );
-                $stmt->execute([$request['blood_group']]);
-                $available = (int)$stmt->fetchColumn();
+                $stmt->bind_param("s", $request['blood_group']);
+                $stmt->execute();
+                $result = $stmt->get_result();
+                $row = $result->fetch_row();
+                $available = $row ? (int)$row[0] : 0;
 
                 if ($available < (int)$request['units']) {
                     throw new Exception('Not enough blood stock available');
                 }
 
-                $stmt = $this->pdo->prepare(
+                $stmt = $this->conn->prepare(
                     "UPDATE blood_inventory
                      SET units = units - ?
                      WHERE blood_group = ?"
                 );
-                $stmt->execute([
-                    $request['units'],
-                    $request['blood_group']
-                ]);
+                $stmt->bind_param("is", $request['units'], $request['blood_group']);
+                $stmt->execute();
             }
 
             // Update request status
-            $stmt = $this->pdo->prepare(
+            $stmt = $this->conn->prepare(
                 "UPDATE requests SET status = ? WHERE id = ?"
             );
-            $stmt->execute([$status, $id]);
+            $stmt->bind_param("si", $status, $id);
+            $stmt->execute();
 
-            $this->pdo->commit();
+            $this->conn->commit();
 
             $_SESSION['success'] = 'Request marked as ' . ucfirst($status);
 
         } catch (Exception $e) {
-            $this->pdo->rollBack();
+            $this->conn->rollback();
             $_SESSION['error'] = $e->getMessage();
         }
 

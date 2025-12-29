@@ -1,6 +1,6 @@
 <?php
 session_start();
-require_once __DIR__ . '/config/database.php';
+require __DIR__ . '/config/database.php';
 
 $requestUri = $_SERVER['REQUEST_URI'] ?? '/';
 $path = parse_url($requestUri, PHP_URL_PATH);
@@ -25,7 +25,7 @@ switch ($path) {
 
     case '/become-donor/store':
         require_once __DIR__ . '/controllers/DonorController.php';
-        (new DonorController($pdo))->store();
+        (new DonorController($conn))->store();
         break;
 
     /* ---------- AUTH ---------- */
@@ -39,17 +39,17 @@ switch ($path) {
 
     case '/auth/login':
         require_once __DIR__ . '/controllers/AuthController.php';
-        (new AuthController($pdo))->login();
+        (new AuthController($conn))->login();
         break;
 
     case '/auth/register':
         require_once __DIR__ . '/controllers/AuthController.php';
-        (new AuthController($pdo))->register();
+        (new AuthController($conn))->register();
         break;
 
     case '/logout':
         require_once __DIR__ . '/controllers/AuthController.php';
-        (new AuthController($pdo))->logout();
+        (new AuthController($conn))->logout();
         break;
 
     /* ---------- DASHBOARD ---------- */
@@ -64,60 +64,60 @@ switch ($path) {
     /* ---------- DONORS (ADMIN) ---------- */
     case '/donors':
         require_once __DIR__ . '/controllers/DonorController.php';
-        (new DonorController($pdo))->index();
+        (new DonorController($conn))->index();
         break;
 
     case '/donors/update':
         require_once __DIR__ . '/controllers/DonorController.php';
-        (new DonorController($pdo))->update();
+        (new DonorController($conn))->update();
         break;
 
     /* ---------- INVENTORY ---------- */
     case '/inventory':
         require_once __DIR__ . '/controllers/InventoryController.php';
-        (new InventoryController($pdo))->index();
+        (new InventoryController($conn))->index();
         break;
 
     case '/inventory/update':
         require_once __DIR__ . '/controllers/InventoryController.php';
-        (new InventoryController($pdo))->update();
+        (new InventoryController($conn))->update();
         break;
 
     /* ---------- REQUESTS ---------- */
     case '/requests':
         require_once __DIR__ . '/controllers/RequestController.php';
-        (new RequestController($pdo))->index();
+        (new RequestController($conn))->index();
         break;
 
     case '/request-blood':
         require_once __DIR__ . '/controllers/RequestController.php';
-        (new RequestController($pdo))->create();
+        (new RequestController($conn))->create();
         break;
 
     case '/requests/store':
         require_once __DIR__ . '/controllers/RequestController.php';
-        (new RequestController($pdo))->store();
+        (new RequestController($conn))->store();
         break;
 
     case '/requests/update-status':
         require_once __DIR__ . '/controllers/RequestController.php';
-        (new RequestController($pdo))->updateStatus();
+        (new RequestController($conn))->updateStatus();
         break;
 
     /* ---------- APPOINTMENTS ---------- */
     case '/appointments':
         require_once __DIR__ . '/controllers/AppointmentController.php';
-        (new AppointmentController($pdo))->index();
+        (new AppointmentController($conn))->index();
         break;
 
     case '/appointments/store':
         require_once __DIR__ . '/controllers/AppointmentController.php';
-        (new AppointmentController($pdo))->store();
+        (new AppointmentController($conn))->store();
         break;
 
     case '/appointments/update-status':
         require_once __DIR__ . '/controllers/AppointmentController.php';
-        (new AppointmentController($pdo))->updateStatus();
+        (new AppointmentController($conn))->updateStatus();
         break;
 
     /* ---------- PROFILE ---------- */
@@ -127,7 +127,7 @@ switch ($path) {
 
     case '/profile/update':
         require_once __DIR__ . '/controllers/ProfileController.php';
-        (new ProfileController($pdo))->update();
+        (new ProfileController($conn))->update();
         break;
 
     /* ---------- 404 ---------- */
